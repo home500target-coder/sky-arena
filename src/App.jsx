@@ -9,10 +9,8 @@ import GameLobbyView from './views/GameLobbyView';
 import LoginView from './views/LoginView';
 import RegisterView from './views/RegisterView';
 import { Bell, Coins, Gamepad2, Award, User, Wifi, Battery, Signal, ArrowLeft, RefreshCw, Zap, ShieldAlert } from 'lucide-react';
-
 function AnimatedBalance({ balance }) {
   const [displayVal, setDisplayVal] = useState(balance);
-
   useEffect(() => {
     if (displayVal === balance) return;
     
@@ -42,10 +40,8 @@ function AnimatedBalance({ balance }) {
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
   }, [balance]);
-
   return <span>{displayVal}</span>;
 }
-
 function GlobalSpinOverlay({ onClose }) {
   const { user, addSpinWinnings } = useDB();
   const [spinning, setSpinning] = useState(false);
@@ -53,15 +49,12 @@ function GlobalSpinOverlay({ onClose }) {
   const [coinsToAnimate, setCoinsToAnimate] = useState([]);
   const [showCelebration, setShowCelebration] = useState(false);
   const [spinWinnings, setSpinWinnings] = useState(0);
-
   const spinsAvailable = user?.wallet?.spinsAvailable || 0;
-
   const handleSpinWheel = () => {
     if (spinning || spinsAvailable <= 0) return;
     setSpinning(true);
     setShowCelebration(false);
     setCoinsToAnimate([]);
-
     // Select random prize based on distribution (Biased towards lower rewards)
     const prizes = [5, 10, 15, 25, 0, 50, 2, 20];
     const winChance = [0.20, 0.10, 0.03, 0.01, 0.25, 0.002, 0.40, 0.008]; // Distribution
@@ -77,7 +70,6 @@ function GlobalSpinOverlay({ onClose }) {
         break;
       }
     }
-
     const selectedPrize = prizes[selectedPrizeIdx];
     
     // Calculate clockwise rotation
@@ -86,16 +78,13 @@ function GlobalSpinOverlay({ onClose }) {
     const nextRotation = wheelRotation + (extraSpins * 360) - (wheelRotation % 360) + (360 - sectorAngle);
     
     setWheelRotation(nextRotation);
-
     // Simulated wheel spin duration (4 seconds for transition)
     setTimeout(() => {
       setSpinning(false);
       setSpinWinnings(selectedPrize);
       setShowCelebration(true);
-
       // Register the spin with the backend to decrement available spins count
       addSpinWinnings(selectedPrize);
-
       if (selectedPrize > 0) {
         // Trigger coin burst animation
         const coinCount = 10;
@@ -104,7 +93,6 @@ function GlobalSpinOverlay({ onClose }) {
       }
     }, 4000);
   };
-
   return (
     <div className="spin-overlay-container">
       {/* Header bar */}
@@ -123,7 +111,6 @@ function GlobalSpinOverlay({ onClose }) {
           <AnimatedBalance balance={user.wallet.deposit + user.wallet.winnings} />
         </div>
       </div>
-
       <div className="spin-overlay-body">
         {/* Decorative text */}
         <div className="spin-promo-header">
@@ -145,7 +132,6 @@ function GlobalSpinOverlay({ onClose }) {
             Spins Left: {spinsAvailable}
           </div>
         </div>
-
         {/* Large Wheel graphic */}
         <div className="spin-wheel-area">
           {/* The Pointer */}
@@ -196,7 +182,6 @@ function GlobalSpinOverlay({ onClose }) {
             </div>
           </div>
         </div>
-
         {/* Winnings display / Celebration */}
         <div className="spin-status-display">
           {showCelebration && (
@@ -226,7 +211,6 @@ function GlobalSpinOverlay({ onClose }) {
               </span>
             </div>
           )}
-
           {spinning && (
             <div className="spin-waiting-text">
               <RefreshCw size={16} className="spin-animate highlight-gold" style={{ display: 'inline', marginRight: 6 }} />
@@ -235,7 +219,6 @@ function GlobalSpinOverlay({ onClose }) {
           )}
         </div>
       </div>
-
       {/* Flying coins burst */}
       {coinsToAnimate.map((id) => {
         const angle = Math.random() * Math.PI * 2;
@@ -257,7 +240,6 @@ function GlobalSpinOverlay({ onClose }) {
     </div>
   );
 }
-
 function GameLobbyWrapper() {
   const { gameId } = useParams();
   const navigate = useNavigate();
@@ -268,16 +250,15 @@ function GameLobbyWrapper() {
     />
   );
 }
-
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, showSpinOverlay, setShowSpinOverlay, notifications } = useDB();
   const [currentTime, setCurrentTime] = useState('');
   const [customAlert, setCustomAlert] = useState(null);
-
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallPopup, setShowInstallPopup] = useState(false);
   const unreadNotifCount = notifications ? notifications.filter(n => !n.isRead).length : 0;
-
   useEffect(() => {
     const originalAlert = window.alert;
     window.alert = (msg) => {
@@ -287,7 +268,6 @@ function AppContent() {
       window.alert = originalAlert;
     };
   }, []);
-
   // Intercept referral links on load to route directly to registration
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -295,7 +275,30 @@ function AppContent() {
       navigate('/register');
     }
   }, []);
-
+  // Listen for browser PWA installation trigger
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      // Only prompt if they haven't dismissed it in this session
+      const dismissed = sessionStorage.getItem('pwa_install_dismissed');
+      if (!dismissed) {
+        setShowInstallPopup(true);
+      }
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User install prompt choice outcome: ${outcome}`);
+    setDeferredPrompt(null);
+    setShowInstallPopup(false);
+  };
   // Live clock for high-fidelity status bar
   useEffect(() => {
     const updateClock = () => {
@@ -306,16 +309,13 @@ function AppContent() {
     const interval = setInterval(updateClock, 30000);
     return () => clearInterval(interval);
   }, []);
-
   // Quick helper to fetch coin balance (deposit + winnings)
   const getCoinBalance = () => {
     return user ? user.wallet.deposit + user.wallet.winnings : 0;
   };
-
   const isActive = (path) => location.pathname.startsWith(path);
   const searchParams = new URLSearchParams(location.search);
   const panel = searchParams.get('panel') || 'menu';
-
   return (
     <div className="app-viewport-mockup-wrapper">
       {/* 3D-Style Phone Device Mockup Frame (desktop-only border wrapper) */}
@@ -343,7 +343,6 @@ function AppContent() {
                 <Battery size={14} />
               </div>
             </div>
-
             {!user ? (
               <div className="app-mobile-main-content">
                 <Routes>
@@ -379,7 +378,6 @@ function AppContent() {
                     </div>
                   </header>
                 )}
-
                 {/* Scrollable View Content */}
                 <main className="app-mobile-main-content">
                   <Routes>
@@ -418,7 +416,6 @@ function AppContent() {
                     <Route path="*" element={<Navigate to="/play" replace />} />
                   </Routes>
                 </main>
-
                 {/* Bottom Navigation Bar */}
                 <nav className="app-mobile-bottom-nav">
                   <button 
@@ -445,18 +442,15 @@ function AppContent() {
                     <span>Me</span>
                   </button>
                 </nav>
-
                 {showSpinOverlay && (
                   <GlobalSpinOverlay onClose={() => setShowSpinOverlay(false)} />
                 )}
               </>
             )}
-
             {/* Phone Swipe-up Home Indicator */}
             <div className="phone-mockup-home-indicator-bar">
               <span className="home-indicator-line"></span>
             </div>
-
             {customAlert && (
               <div className="custom-alert-overlay">
                 <div className="custom-alert-box animated-scale-up">
@@ -473,7 +467,40 @@ function AppContent() {
                 </div>
               </div>
             )}
-
+            {showInstallPopup && (
+              <div className="custom-alert-overlay" style={{ zIndex: 9999 }}>
+                <div className="custom-alert-box animated-scale-up" style={{ textAlign: 'center', padding: '24px 20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                    <div style={{ width: '80px', height: '80px', borderRadius: '20px', overflow: 'hidden', border: '3px solid var(--color-primary)', boxShadow: '0 0 15px rgba(14, 165, 233, 0.4)' }}>
+                      <img src="/img/logo.png" alt="SkyArena Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  </div>
+                  <h4 style={{ color: 'white', fontSize: '1.2rem', marginBottom: '8px' }}>Install SkyArena PWA</h4>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', lineHeight: '1.4', marginBottom: '20px' }}>
+                    Install the application on your device for instant access, offline support, and full-screen gaming experience!
+                  </p>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                      className="custom-alert-btn" 
+                      onClick={() => {
+                        sessionStorage.setItem('pwa_install_dismissed', 'true');
+                        setShowInstallPopup(false);
+                      }}
+                      style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', cursor: 'pointer' }}
+                    >
+                      Later
+                    </button>
+                    <button 
+                      className="custom-alert-btn" 
+                      onClick={handleInstallClick}
+                      style={{ backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', boxShadow: '0 0 10px rgba(14, 165, 233, 0.3)', cursor: 'pointer' }}
+                    >
+                      Install Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
         </div>
@@ -481,7 +508,6 @@ function AppContent() {
     </div>
   );
 }
-
 export default function App() {
   return (
     <BrowserRouter>
