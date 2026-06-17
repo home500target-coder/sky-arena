@@ -1,0 +1,37 @@
+{
+  "name": "SkyArena Esports",
+  "short_name": "SkyArena",
+  "description": "India's Ultimate Battle Arena",
+  "start_url": "/play",
+  "display": "standalone",
+  "background_color": "#071120",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/img/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/img/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/img/screenshot_desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/img/screenshot_mobile.png",
+      "sizes": "720x1280",
+      "type": "image/png"
+    }
+  ]
+}
